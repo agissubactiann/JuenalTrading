@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12161c">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Jurnal Trading">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>Jurnal Trading</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="side">
+      <div class="logo">Jurnal Trading</div>
+      <nav id="nav">
+        <a href="#/accounts" data-p="accounts">Accounts</a>
+        <a href="#/certificates" data-p="certificates">Certificates</a>
+        <a href="#/rules" data-p="rules">Rules Trading</a>
+      </nav>
+      <button id="install" class="btn sm inst" hidden>Install aplikasi</button>
+      <p id="iosHint" class="inst-hint" hidden>Di iPhone: ketuk tombol Share, lalu pilih "Add to Home Screen".</p>
+    </aside>
+    <main id="view"></main>
+  </div>
+  <dialog id="dlg"></dialog>
+  <script src="app.js"></script>
+</body>
+</html>
