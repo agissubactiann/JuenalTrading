@@ -2,7 +2,7 @@
 const KEY = "jurnal-trading-v2";
 const BLN = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 const HARI = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
-let S = load(), filt = "Semua", cal = new Date(), onSub = null;
+let S = load(), filt = "Semua", cal = new Date(), onSub = null, selDay = null, quiet = false;
 cal.setDate(1);
 const $ = (s) => document.querySelector(s), dlg = $("#dlg");
 
@@ -24,7 +24,7 @@ const FM = { idr, sg };
 const cu = (n, f) => `<span data-cnt="${n}" data-f="${f}">${FM[f](n)}</span>`;
 function fx() {
   document.querySelectorAll("#view h1").forEach((h) => { h.innerHTML = h.textContent.split(" ").map((w, i) => `<span class="w" style="--d:${i * 90}ms">${esc(w)}</span>`).join(" "); });
-  document.querySelectorAll("#view .acc,.obj,.card,.day,.tr,.rule,.cert,.chip,.grp h3").forEach((el, i) => el.style.setProperty("--i", Math.min(i, 36)));
+  document.querySelectorAll("#view .acc,.obj,.card,.day,.tr,.rule,.cert,.chip,.mo,.grp h3").forEach((el, i) => el.style.setProperty("--i", Math.min(i, 36)));
   if (matchMedia("(prefers-reduced-motion:reduce)").matches) return;
   document.querySelectorAll("[data-cnt]").forEach((el) => {
     const to = +el.dataset.cnt, f = FM[el.dataset.f], t0 = performance.now();
@@ -123,17 +123,32 @@ function pOverview(a, c) {
    <div class="kv"><span class="muted">Profit/Loss</span><b class="${c.profit >= 0 ? "pos" : "neg"}">${sg(c.profit)}</b></div></aside></div>`;
 }
 
+const BLNS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+const fd = (k) => { const [y, m, d] = k.split("-"); return `${+d} ${BLN[m - 1]} ${y}`; };
+const trRow = (t) => `<div class="tr"><b>${esc(t.pair || "-")}</b><span class="side-tag ${t.side}">${t.side}</span><b class="${t.amount >= 0 ? "pos" : "neg"}">${sg(t.amount)}</b><button class="x" data-act="delTrade" data-v="${t.id}" aria-label="Hapus">&times;</button></div>`;
+
 function pCalendar(a, c) {
-  const y = cal.getFullYear(), m = cal.getMonth(), off = (new Date(y, m, 1).getDay() + 6) % 7, dim = new Date(y, m + 1, 0).getDate();
+  const y = cal.getFullYear(), m = cal.getMonth(), off = (new Date(y, m, 1).getDay() + 6) % 7, dim = new Date(y, m + 1, 0).getDate(), pre = `${y}-${pad(m + 1)}`;
   const cnt = {}; a.trades.forEach((t) => (cnt[t.date] = (cnt[t.date] || 0) + 1));
+  const ms = BLNS.map((_, i) => { const L = c.t.filter((t) => t.date.startsWith(`${y}-${pad(i + 1)}`)); return { n: L.length, s: sum(L) }; });
   let cells = '<div class="day void"></div>'.repeat(off);
   for (let d = 1; d <= dim; d++) {
     const k = ds(y, m, d), wd = (off + d - 1) % 7 > 4, s = c.days[k];
-    cells += `<button class="day ${wd ? "off" : ""} ${k === today() ? "today" : ""} ${s > 0 ? "win" : s < 0 ? "lose" : ""}" data-act="dayAdd" data-v="${k}"><b>${pad(d)}</b>
+    cells += `<button class="day ${wd ? "off" : ""} ${k === today() ? "today" : ""} ${k === selDay ? "sel" : ""} ${s > 0 ? "win" : s < 0 ? "lose" : ""}" data-act="day" data-v="${k}" aria-label="Lihat history ${fd(k)}"><b>${pad(d)}</b>
     ${cnt[k] ? `<small>${cnt[k]}<span class="tw"> Trades</span><span class="tx">x</span></small><span class="r">${short(s)}</span>` : wd ? '<small class="wkd">Weekend</small>' : ""}</button>`;
   }
-  return `<div class="cal-head"><h2>Trading Calendar</h2><div><button class="icon" data-act="prev">&#8249;</button> <b style="margin:0 10px">${BLN[m]} ${y}</b> <button class="icon" data-act="next">&#8250;</button></div></div>
-  <div class="wk">${HARI.map((h) => `<span>${h.slice(0, 3)}</span>`).join("")}</div><div class="dg">${cells}</div>`;
+  const list = selDay ? c.t.filter((t) => t.date === selDay) : c.t.filter((t) => t.date.startsWith(pre));
+  const tot = sum(list), w = list.filter((t) => t.amount > 0).length, g = {};
+  list.forEach((t) => (g[t.date] ||= []).push(t));
+  const addD = selDay || (today().startsWith(pre) ? today() : ds(y, m, 1));
+  return `<div class="cal-head"><h2>Trading Calendar</h2><div class="yr"><button class="icon" data-act="yprev" aria-label="Tahun sebelumnya">&#8249;</button><b>${y}</b><button class="icon" data-act="ynext" aria-label="Tahun berikutnya">&#8250;</button></div></div>
+  <div class="months">${BLNS.map((n, i) => `<button class="mo ${i === m ? "on" : ""} ${ms[i].n ? (ms[i].s >= 0 ? "win" : "lose") : ""}" data-act="month" data-v="${i}" title="${BLN[i]} ${y}"><b>${n}</b><small>${ms[i].n ? short(ms[i].s) : "–"}</small></button>`).join("")}</div>
+  <div class="wk">${HARI.map((h) => `<span>${h.slice(0, 3)}</span>`).join("")}</div><div class="dg">${cells}</div>
+  <section class="card hist" id="hist"><div class="hhead"><div><h2>History ${selDay ? fd(selDay) : BLN[m] + " " + y}</h2>
+   <span class="muted">${list.length} trade &middot; Win rate ${list.length ? Math.round((w / list.length) * 100) : 0}% &middot; <b class="${tot >= 0 ? "pos" : "neg"}">${sg(tot)}</b></span></div>
+   <div>${selDay ? `<button class="btn ghost sm" data-act="day" data-v="${selDay}">Lihat sebulan</button> ` : ""}<button class="btn sm" data-act="dayAdd" data-v="${addD}">+ Catat trade</button></div></div>
+  ${Object.keys(g).sort().reverse().map((d) => `<div class="grp">${selDay ? "" : `<h3>${fd(d)}<small>${g[d].length} trade &middot; <b class="${sum(g[d]) >= 0 ? "pos" : "neg"}">${sg(sum(g[d]))}</b></small></h3>`}${g[d].map(trRow).join("")}</div>`).join("")
+    || `<div class="empty">Belum ada trade ${selDay ? "di tanggal ini" : "di bulan ini"}.</div>`}</section>`;
 }
 
 function pHistory(a, c) {
@@ -184,8 +199,9 @@ function route() {
   document.querySelectorAll("#nav a").forEach((l) => l.classList.toggle("on", l.dataset.p === (p === "account" ? "accounts" : p)));
   $("#view").innerHTML = p === "account" ? pDetail(id, tab) : p === "certificates" ? pCerts() : p === "rules" ? pRules() : pAccounts();
   fx();
+  $("#view").classList.toggle("quiet", quiet); quiet = false;
 }
-addEventListener("hashchange", route);
+addEventListener("hashchange", () => { selDay = null; if (mob()) setNav(false); route(); });
 
 /* ---------- Event ---------- */
 document.addEventListener("click", (e) => {
@@ -194,7 +210,10 @@ document.addEventListener("click", (e) => {
   ({
     close: () => dlg.close(), newAcc: newAccount, setName: () => openDlg("Nama trader", fld("Nama lengkap", "n", `value="${esc(S.trader || "")}" autocomplete="off"`), "Simpan", (f) => { S.trader = f.get("n").trim(); save(); route(); }), print: () => print(),
     filt: () => { filt = v; route(); },
-    prev: () => { cal.setMonth(cal.getMonth() - 1); route(); }, next: () => { cal.setMonth(cal.getMonth() + 1); route(); },
+    yprev: () => { cal.setFullYear(cal.getFullYear() - 1); selDay = null; quiet = true; route(); },
+    ynext: () => { cal.setFullYear(cal.getFullYear() + 1); selDay = null; quiet = true; route(); },
+    month: () => { cal.setMonth(+v); selDay = null; quiet = true; route(); },
+    day: () => { selDay = selDay === v ? null : v; quiet = true; route(); requestAnimationFrame(() => $("#hist")?.scrollIntoView({ behavior: "smooth", block: "nearest" })); },
     addTrade: () => addTrade(a), dayAdd: () => addTrade(a, v),
     delTrade: () => { a.trades = a.trades.filter((t) => t.id != v); save(); route(); },
     delAcc: () => { if (confirm("Hapus akun ini beserta semua trade-nya?")) { S.accounts = S.accounts.filter((x) => x !== a); save(); location.hash = "#/accounts"; } },
@@ -219,3 +238,15 @@ addEventListener("appinstalled", () => { $("#install").hidden = true; });
 const iosDev = /iphone|ipad|ipod/i.test(navigator.userAgent), standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
 if (iosDev && !standalone) $("#iosHint").hidden = false;
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
+
+/* ===== Menu hamburger ===== */
+const mob = () => matchMedia("(max-width:900px)").matches;
+function setNav(on) {
+  document.body.classList.toggle("nav-off", !on);
+  $("#burger").setAttribute("aria-expanded", on);
+  if (!mob()) localStorage.setItem("jt-nav", on ? "on" : "off");
+}
+$("#burger").addEventListener("click", () => setNav(document.body.classList.contains("nav-off")));
+document.body.classList.add("init");
+setNav(mob() ? false : localStorage.getItem("jt-nav") !== "off");
+requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("init")));

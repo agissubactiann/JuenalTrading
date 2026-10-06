@@ -176,3 +176,41 @@ dialog .row{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
 .inst:hover{background:rgba(255,255,255,.2);box-shadow:none}
 .inst-hint{font-size:.78rem;line-height:1.5;color:rgba(246,243,236,.65);margin:18px 10px 0}
 @media(max-width:900px){.inst{margin:10px 0 0;width:100%}.inst-hint{margin:10px 2px 0}}
+
+/* ===== Dialog di tengah ===== */
+dialog{margin:auto;max-height:92vh;overflow:auto}
+
+/* ===== Hamburger & sidebar bisa disembunyikan ===== */
+.main{min-width:0}
+.topbar{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:12px;padding:14px 44px 10px;background:rgba(246,243,236,.85);backdrop-filter:blur(8px)}
+.tb-title{display:none;font:1.35rem var(--serif)}body.nav-off .tb-title{display:inline}
+.burger{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:#fff;cursor:pointer;display:grid;place-content:center;gap:5px;transition:.25s}
+.burger:hover{border-color:var(--text)}
+.burger i{display:block;width:18px;height:2px;background:var(--text);border-radius:2px;transition:transform .3s,opacity .3s}
+body:not(.nav-off) .burger i:nth-child(1){transform:translateY(7px) rotate(45deg)}
+body:not(.nav-off) .burger i:nth-child(2){opacity:0}
+body:not(.nav-off) .burger i:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.shell{transition:grid-template-columns .35s cubic-bezier(.2,.7,.2,1)}
+.side{overflow:hidden;white-space:nowrap}.inst-hint{white-space:normal}
+body.nav-off .shell{grid-template-columns:0 1fr}
+body.nav-off .side{padding-left:0;padding-right:0}
+.init .shell{transition:none!important}
+#view{padding-top:18px}
+
+/* ===== Bulan & history di kalender ===== */
+.yr{display:flex;align-items:center;gap:10px}.yr b{min-width:46px;text-align:center}
+.months{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;margin-bottom:20px}
+.mo{font:inherit;padding:8px 2px;border-radius:12px;border:1px solid var(--line);background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;transition:.25s;animation:pop .45s both;animation-delay:calc(var(--i,0)*25ms)}
+.mo:hover{transform:translateY(-2px);border-color:var(--accent)}
+.mo b{font-size:.82rem}.mo small{font-size:.66rem;font-weight:700;color:var(--muted);white-space:nowrap}
+.mo.win{background:#eef9f2}.mo.win small{color:var(--profit)}.mo.lose{background:#fdf1f0}.mo.lose small{color:var(--loss)}
+.mo.on{background:var(--text);border-color:var(--text);color:#fff}.mo.on small{color:rgba(255,255,255,.8)}
+.day.sel{outline:2px solid var(--text);outline-offset:2px;z-index:1}
+.hist{margin-top:26px}
+.hhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px}.hhead h2{margin-bottom:2px}
+.grp h3 small b{margin-left:0}
+.quiet *{animation:none!important}
+@media(max-width:900px){body.nav-off .shell{grid-template-columns:minmax(0,1fr)}body.nav-off .side{display:none}.topbar{padding:12px 14px 8px}}
+@media(max-width:640px){.months{grid-template-columns:repeat(6,minmax(0,1fr))}.hhead>div:last-child{width:100%;display:flex;gap:8px}.hhead .btn{flex:1;text-align:center}}
+@media print{.topbar{display:none}}
+@media(max-width:640px){.hist{padding:16px 10px}.hist .tr{padding:10px;grid-template-columns:minmax(0,1fr) 48px auto 20px;gap:6px}.hist .tr b:first-child{font-size:.85rem}}
