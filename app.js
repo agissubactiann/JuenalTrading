@@ -4,6 +4,7 @@ const BLN = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus",
 const HARI = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
 let S = load(), filt = "Semua", cal = new Date(), onSub = null, selDay = null, quiet = false;
 cal.setDate(1);
+S.payouts ||= [];
 const $ = (s) => document.querySelector(s), dlg = $("#dlg");
 
 function load() { try { return JSON.parse(localStorage.getItem(KEY)) || { accounts: [], rules: [] }; } catch { return { accounts: [], rules: [] }; } }
@@ -24,9 +25,13 @@ const FM = { idr, sg };
 const cu = (n, f) => `<span data-cnt="${n}" data-f="${f}">${FM[f](n)}</span>`;
 function fx() {
   document.querySelectorAll("#view h1").forEach((h) => { h.innerHTML = h.textContent.split(" ").map((w, i) => `<span class="w" style="--d:${i * 90}ms">${esc(w)}</span>`).join(" "); });
-  document.querySelectorAll("#view .acc,.obj,.card,.day,.tr,.rule,.cert,.chip,.mo,.grp h3").forEach((el, i) => el.style.setProperty("--i", Math.min(i, 36)));
+  document.querySelectorAll("#view .acc,.obj,.card,.day,.tr,.rule,.cert,.chip,.mo,.mini,.grp h3").forEach((el, i) => el.style.setProperty("--i", Math.min(i, 36)));
   if (matchMedia("(prefers-reduced-motion:reduce)").matches) return;
-  document.querySelectorAll("[data-cnt]").forEach((el) => {
+  countUp(document);
+}
+function countUp(root) {
+  if (matchMedia("(prefers-reduced-motion:reduce)").matches) return;
+  root.querySelectorAll("[data-cnt]").forEach((el) => {
     const to = +el.dataset.cnt, f = FM[el.dataset.f], t0 = performance.now();
     (function s(t) { const p = Math.min(1, (t - t0) / 1000), e = 1 - Math.pow(1 - p, 3); el.textContent = f(to * e); if (p < 1) requestAnimationFrame(s); })(t0);
   });
@@ -103,7 +108,7 @@ function chart(a, c) {
   const lo = a.start * (1 - a.maxP / 100), hi = a.start + c.target, all = [...c.pts, lo, hi];
   let mn = Math.min(...all), mx = Math.max(...all); const p = (mx - mn) * 0.08 || 1; mn -= p; mx += p;
   const W = 640, H = 220, X = (i) => 8 + (c.pts.length > 1 ? i / (c.pts.length - 1) : 0) * (W - 16), Y = (v) => H - ((v - mn) / (mx - mn)) * H;
-  const ln = (v, k, t) => `<line class="ln ${k}" x1="0" x2="${W}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tx ${k}" x="${W - 4}" y="${Y(v) - 5}" text-anchor="end">${t}</text>`;
+  const ln = (v, k, t) => `<line class="ln ${k}" x1="0" x2="${W}" y1="${Y(v)}" y2="${Y(v)}"/><text class="lt ${k}" x="${W - 4}" y="${Y(v) - 5}" text-anchor="end">${t}</text>`;
   const last = c.pts.length - 1, P = c.pts.map((v, i) => X(i) + "," + Y(v)).join(" ");
   return `<svg class="chart" viewBox="0 0 ${W} ${H}">${ln(hi, "g", "Profit target " + idr(hi))}${ln(lo, "r", "Max loss " + idr(lo))}
   <defs><linearGradient id="ar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0e7a5f" stop-opacity=".28"/><stop offset="1" stop-color="#0e7a5f" stop-opacity="0"/></linearGradient></defs><polygon class="ar" fill="url(#ar)" points="${P} ${X(last)},${H} ${X(0)},${H}"/><polyline class="pl" pathLength="1" fill="none" stroke="#0e7a5f" stroke-width="2.5" stroke-linejoin="round" points="${P}"/><circle class="ring" cx="${X(last)}" cy="${Y(c.pts[last])}" r="4"/><circle class="dot" cx="${X(last)}" cy="${Y(c.pts[last])}" r="5"/></svg>`;
@@ -174,9 +179,7 @@ function pDetail(id, tab) {
 
 const SEAL = `<svg class="seal" viewBox="0 0 100 120" aria-hidden="true"><polygon points="30,80 18,118 38,108 50,118 50,84" fill="#8a1c2b"/><polygon points="70,80 82,118 62,108 50,118 50,84" fill="#a82a3b"/><circle cx="50" cy="48" r="44" fill="#c9a24b"/><circle cx="50" cy="48" r="38" fill="none" stroke="#fff6d6" stroke-width="1.5" stroke-dasharray="2 3"/><circle cx="50" cy="48" r="31" fill="#e3c372"/><polygon points="50,24 56,40 73,41 60,52 64,69 50,60 36,69 40,52 27,41 44,40" fill="#fff6d6" stroke="#a37d2a" stroke-width="1"/></svg>`;
 
-function pCerts() {
-  const ok = S.accounts.map((a) => ({ a, c: calc(a) })).filter((x) => x.c.status === "Passed"), nm = esc(S.trader || "Nama Trader");
-  return `<div class="head"><h1>Certificates</h1><button class="btn ghost" data-act="setName">${S.trader ? "Ubah" : "Atur"} nama trader</button></div>` + (ok.length ? ok.map(({ a, c }) => `
+const certFull = (a, c) => { const nm = esc(S.trader || "Nama Trader"); return `
   <section class="cert"><i class="co k1"></i><i class="co k2"></i><i class="co k3"></i><i class="co k4"></i><div class="cin">
    <span class="eyebrow">Jurnal Trading &middot; Prop Challenge</span>
    <h2 class="ctitle">Certificate of Achievement</h2>
@@ -184,9 +187,73 @@ function pCerts() {
    <div class="cname">${nm}</div><div class="cline"></div>
    <p class="csub">atas keberhasilan mencapai target profit ${a.profP}% pada akun <b>${esc(a.name)}</b><br>tanpa melanggar batas daily loss maupun max loss.</p>
    <div class="cstats"><div><b>${cu(c.profit, "sg")}</b><span>Total profit</span></div><div><b>${c.nd}</b><span>Hari trading</span></div><div><b>${cu(c.bal, "idr")}</b><span>Saldo akhir</span></div></div>
-   <div class="cfoot"><div><b>${c.passDate || "-"}</b><span>Tanggal lolos</span></div>${SEAL}<div><b>JT-${String(a.id).slice(-6)}</b><span>Nomor sertifikat</span></div></div></div></section>`).join("") + '<button class="btn" data-act="print">Simpan PDF / Cetak</button>'
+   <div class="cfoot"><div><b>${c.passDate || "-"}</b><span>Tanggal lolos</span></div>${SEAL}<div><b>JT-${String(a.id).slice(-6)}</b><span>Nomor sertifikat</span></div></div></div></section>`; };
+
+function pCerts() {
+  const ok = S.accounts.map((a) => ({ a, c: calc(a) })).filter((x) => x.c.status === "Passed");
+  return `<div class="head"><h1>Certificates</h1><button class="btn ghost" data-act="setName">${S.trader ? "Ubah" : "Atur"} nama trader</button></div>` + (ok.length ? `<div class="minis">${ok.map(({ a, c }) => `
+   <article class="mini"><div class="mthumb gold">${SEAL}<span>Certificate of Achievement</span></div>
+    <h3>${esc(a.name)}</h3>
+    <div class="tags"><span class="tag Passed">Passed</span><span class="tag">Rp ${short(a.start).replace("+", "")}</span><span class="tag win">${sg(c.profit)}</span></div>
+    <p class="muted">Tanggal lolos: ${c.passDate ? fd(c.passDate) : "-"}</p>
+    <button class="btn sm" data-act="viewCert" data-id="${a.id}">Lihat sertifikat</button></article>`).join("")}</div>`
     : '<div class="empty">Belum ada sertifikat. Akun yang mencapai profit target dan min trading days tanpa breach akan muncul di sini.</div>');
 }
+
+const fdl = (k) => { const [y, m, d] = k.split("-").map(Number); return `${HARI[(new Date(y, m - 1, d).getDay() + 6) % 7]}, ${d} ${BLN[m - 1]} ${y}`; };
+
+function addPayout() {
+  const opts = S.accounts.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join("");
+  openDlg("Catat payout",
+    fld("Tanggal payout", "date", `type="date" value="${today()}"`) + mfld("Nominal payout (IDR)", "amount") +
+    `<label>Dari akun</label><select name="acc"><option value="">Tanpa akun</option>${opts}</select>
+     <label>Catatan (opsional)</label><input name="note" placeholder="Misal: Payout pertama" autocomplete="off">`,
+    "Simpan", (f) => {
+      const v = money(f.get("amount")); if (!v) return false;
+      S.payouts.push({ id: Date.now(), date: f.get("date"), amount: v, acc: f.get("acc"), note: f.get("note").trim() });
+      save(); route();
+    });
+}
+
+const payFull = (p) => {
+  const nm = esc(S.trader || "Nama Trader"), ac = S.accounts.find((x) => x.id == p.acc);
+  return `<section class="cert pay"><i class="co k1"></i><i class="co k2"></i><i class="co k3"></i><i class="co k4"></i><div class="cin">
+   <span class="eyebrow">Jurnal Trading &middot; Payout</span>
+   <h2 class="ctitle">Payout Certificate</h2>
+   <p class="csub">Dengan bangga diberikan kepada</p>
+   <div class="cname">${nm}</div><div class="cline"></div>
+   <p class="csub">atas payout yang diterima pada</p>
+   <div class="pdate">${fdl(p.date)}</div>
+   <div class="pamt">${cu(p.amount, "idr")}</div>
+   <p class="csub">Apresiasi atas konsistensi dan disiplin dalam trading.</p>
+   ${p.note ? `<p class="csub pnote">${esc(p.note)}</p>` : ""}
+   <div class="cfoot"><div><b>${ac ? esc(ac.name) : "-"}</b><span>Akun</span></div>${SEAL}<div><b>PO-${String(p.id).slice(-6)}</b><span>Nomor payout</span></div></div></div></section>`;
+};
+
+function pPayout() {
+  const L = [...S.payouts].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
+  const tot = L.reduce((s, p) => s + p.amount, 0);
+  return `<div class="head"><h1>Payout</h1><div><button class="btn ghost" data-act="setName">${S.trader ? "Ubah" : "Atur"} nama trader</button> <button class="btn" data-act="addPayout">+ Catat payout</button></div></div>
+  <div class="pstats"><div class="card"><span class="lbl">Total payout</span><strong>${cu(tot, "idr")}</strong></div>
+   <div class="card"><span class="lbl">Jumlah payout</span><strong>${L.length}x</strong></div>
+   <div class="card"><span class="lbl">Payout terakhir</span><strong>${L.length ? fd(L[0].date) : "-"}</strong></div></div>` +
+  (L.length ? `<div class="minis">${L.map((p) => { const ac = S.accounts.find((x) => x.id == p.acc); return `
+   <article class="mini"><div class="mthumb green"><small>PAYOUT</small><b>${idr(p.amount)}</b></div>
+    <h3>${fd(p.date)}</h3>
+    <div class="tags"><span class="tag">${ac ? esc(ac.name) : "Tanpa akun"}</span><span class="tag">PO-${String(p.id).slice(-6)}</span></div>
+    <p class="muted">${fdl(p.date).split(",")[0]}${p.note ? " · " + esc(p.note) : ""}</p>
+    <button class="btn sm" data-act="viewPay" data-v="${p.id}">Lihat detail</button></article>`; }).join("")}</div>`
+    : '<div class="empty">Belum ada payout. Klik “+ Catat payout” setelah lu berhasil menarik profit, dan kartu apresiasinya muncul di sini.</div>');
+}
+
+/* ----- Modal sertifikat besar ----- */
+function showCert(html, extra = "") {
+  dlg.classList.add("wide"); onSub = null;
+  dlg.innerHTML = `<div class="cview">${html}<div class="row">${extra}<button type="button" class="btn ghost" data-act="close">Tutup</button><button type="button" class="btn" data-act="print">Simpan PDF / Cetak</button></div></div>`;
+  dlg.showModal(); countUp(dlg);
+}
+dlg.addEventListener("close", () => dlg.classList.remove("wide"));
+dlg.addEventListener("click", (e) => { if (e.target === dlg && dlg.classList.contains("wide")) dlg.close(); });
 
 function pRules() {
   return `<div class="head"><h1>Rules Trading</h1></div><form class="rform" data-form="rule"><input name="r" placeholder="Tulis aturan trading kamu…" autocomplete="off" required><button class="btn">Tambah</button></form>
@@ -197,7 +264,7 @@ function pRules() {
 function route() {
   const [, p = "accounts", id, tab = "overview"] = location.hash.split("/");
   document.querySelectorAll("#nav a").forEach((l) => l.classList.toggle("on", l.dataset.p === (p === "account" ? "accounts" : p)));
-  $("#view").innerHTML = p === "account" ? pDetail(id, tab) : p === "certificates" ? pCerts() : p === "rules" ? pRules() : pAccounts();
+  $("#view").innerHTML = p === "account" ? pDetail(id, tab) : p === "certificates" ? pCerts() : p === "payout" ? pPayout() : p === "rules" ? pRules() : pAccounts();
   fx();
   $("#view").classList.toggle("quiet", quiet); quiet = false;
 }
@@ -208,7 +275,10 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const v = b.dataset.v, a = S.accounts.find((x) => x.id == (b.dataset.id || location.hash.split("/")[2]));
   ({
-    close: () => dlg.close(), newAcc: newAccount, setName: () => openDlg("Nama trader", fld("Nama lengkap", "n", `value="${esc(S.trader || "")}" autocomplete="off"`), "Simpan", (f) => { S.trader = f.get("n").trim(); save(); route(); }), print: () => print(),
+    close: () => dlg.close(), newAcc: newAccount, addPayout,
+    viewCert: () => showCert(certFull(a, calc(a))),
+    viewPay: () => showCert(payFull(S.payouts.find((p) => p.id == v)), `<button type="button" class="link" style="margin-right:auto" data-act="delPayout" data-v="${v}">Hapus payout</button>`),
+    delPayout: () => { if (confirm("Hapus payout ini?")) { S.payouts = S.payouts.filter((p) => p.id != v); save(); dlg.close(); route(); } }, setName: () => openDlg("Nama trader", fld("Nama lengkap", "n", `value="${esc(S.trader || "")}" autocomplete="off"`), "Simpan", (f) => { S.trader = f.get("n").trim(); save(); route(); }), print: () => print(),
     filt: () => { filt = v; route(); },
     yprev: () => { cal.setFullYear(cal.getFullYear() - 1); selDay = null; quiet = true; route(); },
     ynext: () => { cal.setFullYear(cal.getFullYear() + 1); selDay = null; quiet = true; route(); },

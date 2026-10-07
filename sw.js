@@ -1,6 +1,6 @@
 /* Service worker: bikin app bisa dibuka offline. Naikkan angka V kalau mau paksa refresh cache. */
-const V = "jt-v1";
-const CORE = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
+const V = "jt-v2";
+const CORE = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "fonts/inter-latin-400-normal.woff2", "fonts/inter-latin-500-normal.woff2", "fonts/inter-latin-600-normal.woff2", "fonts/inter-latin-700-normal.woff2"];
 const keep = (res) => res && (res.ok || res.type === "opaque");
 
 self.addEventListener("install", (e) => {

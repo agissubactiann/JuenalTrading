@@ -1,8 +1,12 @@
+@font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:swap;src:url(fonts/inter-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:500;font-style:normal;font-display:swap;src:url(fonts/inter-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:600;font-style:normal;font-display:swap;src:url(fonts/inter-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Inter";font-weight:700;font-style:normal;font-display:swap;src:url(fonts/inter-latin-700-normal.woff2) format("woff2")}
 /* ===== Warna & font: ubah di sini ===== */
 :root{--bg:#f6f3ec;--text:#12161c;--muted:#6f7480;--line:#e4dfd3;--soft:#f1ede3;--card:#fff;
 --accent:#0e7a5f;--accent2:#c9a24b;--profit:#12945f;--profit-bg:#dff3e8;--loss:#d03b3b;--loss-bg:#fbe2e0;
 --shadow:0 1px 2px rgba(18,22,28,.04),0 10px 30px -12px rgba(18,22,28,.14);
---serif:"Instrument Serif",Georgia,serif;--sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif}
+--sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--serif:var(--sans)}
 *{box-sizing:border-box;margin:0}
 body{color:var(--text);font:15px/1.5 var(--sans);background:var(--bg);
 background-image:radial-gradient(700px 400px at 90% -5%,rgba(14,122,95,.13),transparent 70%),radial-gradient(600px 400px at 100% 60%,rgba(201,162,75,.13),transparent 70%);background-attachment:fixed}
@@ -90,7 +94,7 @@ dialog .row{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
 .kv{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:.9rem}.kv:last-child{border:0}
 .chart{width:100%;height:auto;margin-top:12px;overflow:visible}
 .ln{stroke-width:1.2;stroke-dasharray:4 4}.ln.g{stroke:var(--profit)}.ln.r{stroke:var(--loss)}
-.tx{font-size:11px;font-weight:700}.tx.g{fill:var(--profit)}.tx.r{fill:var(--loss)}
+.lt{font-size:11px;font-weight:700}.lt.g{fill:var(--profit)}.lt.r{fill:var(--loss)}
 
 /* ===== Kalender ===== */
 .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
@@ -214,3 +218,73 @@ body.nav-off .side{padding-left:0;padding-right:0}
 @media(max-width:640px){.months{grid-template-columns:repeat(6,minmax(0,1fr))}.hhead>div:last-child{width:100%;display:flex;gap:8px}.hhead .btn{flex:1;text-align:center}}
 @media print{.topbar{display:none}}
 @media(max-width:640px){.hist{padding:16px 10px}.hist .tr{padding:10px;grid-template-columns:minmax(0,1fr) 48px auto 20px;gap:6px}.hist .tr b:first-child{font-size:.85rem}}
+
+/* ===== Payout ===== */
+.cert.pay{background:radial-gradient(circle at 50% 28%,#16795f,#0a2b23 75%);color:#f6f3ec}
+.cert.pay::after{background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.14) 50%,transparent 65%)}
+.pay .eyebrow,.pay .cfoot div>span{color:#e3c372}.pay .ctitle,.pay .cfoot b{color:#f6f3ec}.pay .csub{color:rgba(246,243,236,.78)}
+.pay .cname{background:linear-gradient(90deg,#f6e3a1,#c9a24b);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pay .cline{background:linear-gradient(90deg,transparent,#e3c372,transparent)}
+.pdate{font:italic 2rem/1.2 var(--serif);color:#e3c372;animation:rise 1s 1.1s both}
+.pamt{font:4.2rem/1.1 var(--serif);color:#fff6d6;animation:rise 1.1s 1.3s both}
+.pnote{font-style:italic}
+.pstats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px}
+.pstats .card{transition:transform .3s}.pstats .card:hover{transform:translateY(-4px)}
+.pstats .card strong{font:1.8rem var(--serif);font-weight:400;display:block}
+.pdel{display:block;margin:-14px 0 26px auto}
+@media(max-width:640px){.pstats{grid-template-columns:1fr}.pamt{font-size:2.6rem}.pdate{font-size:1.35rem}}
+@media print{.pdel{display:none}.cert.pay{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+/* ===== Daftar kartu kecil (Certificates & Payout) ===== */
+.minis{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
+.mini{background:var(--card);border-radius:18px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;transition:transform .3s,box-shadow .3s;animation:up .6s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--i,0)*45ms)}
+.mini:hover{transform:translateY(-5px);box-shadow:0 22px 40px -18px rgba(14,90,71,.35)}
+.mini h3{font:1.3rem var(--serif);font-weight:400}.mini .muted{font-size:.85rem}
+.mini .btn{margin-top:auto;width:100%;text-align:center}
+.mthumb{height:150px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;position:relative;overflow:hidden}
+.mthumb::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.3) 50%,transparent 65%);animation:shine 4.5s ease-in-out infinite}
+.mthumb.gold{background:linear-gradient(160deg,#fffdf6,#f3e3b8);border:2px solid var(--accent2);color:#8a6a1f;font:700 .68rem var(--sans);letter-spacing:.2em;text-transform:uppercase}
+.mthumb.green{background:radial-gradient(circle at 50% 30%,#16795f,#0a2b23 80%);color:#fff6d6}
+.mthumb.green small{font-size:.7rem;letter-spacing:.3em;color:#e3c372;font-weight:700}
+.mthumb.green b{font:2.1rem var(--serif);font-weight:400}
+.mthumb .seal{width:56px;animation:none}
+@media(prefers-reduced-motion:reduce){.mthumb::after{display:none}}
+
+/* ===== Modal sertifikat ===== */
+dialog.wide{width:min(920px,96vw);padding:14px;background:var(--bg)}
+.cview .cert{margin:0;animation:none}
+.cview .row{margin-top:16px;flex-wrap:wrap}
+@media(max-width:640px){dialog.wide{padding:8px}.minis{grid-template-columns:1fr}.mthumb{height:130px}}
+@media print{body:has(dialog.wide[open]) .shell{display:none}dialog.wide{position:static;width:auto;max-height:none;overflow:visible;box-shadow:none;padding:0;margin:0;background:none}.cview .row{display:none}}
+
+/* ===== Font Inter (gaya dashboard modern) ===== */
+body{font-variant-numeric:normal;-webkit-font-smoothing:antialiased}
+h1{font-size:1.9rem;font-weight:700;letter-spacing:-.025em}
+h2{font-size:1.3rem;font-weight:600;letter-spacing:-.015em}
+.logo{font-size:1.2rem;font-weight:700;letter-spacing:-.02em}.tb-title{font-size:1.05rem;font-weight:700}
+.lbl{text-transform:none;letter-spacing:0;font-size:.82rem;font-weight:500}
+.wk span{text-transform:none;letter-spacing:0;font-size:.8rem;font-weight:600}
+.badge b{font-size:1.3rem;font-weight:700}
+.accbody strong{font-size:1.85rem;font-weight:700;letter-spacing:-.02em}
+.obj strong{font-size:1.2rem;font-weight:700;letter-spacing:-.01em;overflow-wrap:anywhere}
+.stats .card strong,.pstats .card strong{font-size:1.4rem;font-weight:700;letter-spacing:-.015em;overflow-wrap:anywhere}
+.bal .big{font-size:2rem;font-weight:700;letter-spacing:-.02em}
+.mini h3{font-size:1.05rem;font-weight:600}
+.mthumb.green b{font-size:1.5rem;font-weight:700;letter-spacing:-.01em}
+.ctitle{font-size:2.1rem;font-weight:700;letter-spacing:-.02em}
+.cname{font-style:normal;font-size:2.8rem;font-weight:700;letter-spacing:-.02em}
+.cstats b{font-size:1.35rem;font-weight:700}
+.pdate{font-style:normal;font-size:1.5rem;font-weight:600}
+.pamt{font-size:3.4rem;font-weight:700;letter-spacing:-.03em}
+@media(max-width:640px){
+  h1{font-size:1.6rem}
+  .accbody strong{font-size:1.6rem}
+  .obj strong{font-size:1rem}
+  .stats .card strong{font-size:1.05rem}.pstats .card strong{font-size:1.3rem}
+  .bal .big{font-size:1.7rem}
+  .ctitle{font-size:1.45rem}.cname{font-size:1.9rem}.cstats b{font-size:1.1rem}
+  .pamt{font-size:2.1rem}.pdate{font-size:1.1rem}
+}
+
+.bal .big{font-size:1.65rem;white-space:nowrap}
+@media(max-width:640px){.bal .big{font-size:1.6rem}}
