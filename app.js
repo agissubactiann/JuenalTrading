@@ -74,20 +74,31 @@ function calc(a) {
   const t = [...a.trades].sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : x.id - y.id));
   const days = {},
     pts = [a.start];
-  let bal = a.start,
-    breach = null,
-    passDate = null;
+  let bal = a.start;
   t.forEach((x) => {
     days[x.date] = (days[x.date] || 0) + x.amount;
     bal += x.amount;
     pts.push(bal);
-    if (!breach && bal <= a.start * (1 - a.maxP / 100)) breach = "Max loss limit tercapai. Akun breached.";
-    if (!breach && days[x.date] <= (-a.start * a.dailyP) / 100) breach = `Daily loss limit tercapai pada ${x.date}. Akun breached.`;
-    if (!passDate && !breach && bal - a.start >= (a.start * a.profP) / 100 && Object.keys(days).length >= a.minD) passDate = x.date;
+  });
+  // Aturan dihitung per akhir hari (urutan trade dalam satu hari tidak dicatat jamnya)
+  const keys = Object.keys(days).sort(),
+    dl = (a.start * a.dailyP) / 100,
+    ml = a.start * (1 - a.maxP / 100),
+    target = (a.start * a.profP) / 100;
+  let run = a.start,
+    low = a.start,
+    mcDate = null,
+    passDate = null;
+  const dailyHits = [];
+  keys.forEach((d, i) => {
+    run += days[d];
+    low = Math.min(low, run);
+    if (days[d] <= -dl) dailyHits.push(d); // daily loss: hanya mengunci hari itu
+    if (!mcDate && run <= ml) mcDate = d; // max loss / MC: mengunci akun
+    if (!passDate && !mcDate && run - a.start >= target && i + 1 >= a.minD) passDate = d;
   });
   const profit = bal - a.start,
-    target = (a.start * a.profP) / 100,
-    nd = Object.keys(days).length;
+    nd = keys.length;
   const w = t.filter((x) => x.amount > 0),
     l = t.filter((x) => x.amount < 0),
     gp = sum(w),
@@ -95,6 +106,8 @@ function calc(a) {
   const paid = (S.payouts || []).filter((p) => p.acc == a.id).reduce((x, p) => x + p.amount, 0);
   return {
     passDate,
+    mcDate,
+    dailyHits,
     t,
     days,
     pts,
@@ -104,16 +117,22 @@ function calc(a) {
     profit,
     target,
     nd,
-    breach,
     n: t.length,
     wins: w.length,
-    status: breach ? "Breached" : profit >= target && nd >= a.minD ? "Passed" : "Active",
+    breach: mcDate ? `Max loss limit tercapai pada ${mcDate} (MC). Akun terkunci dan tidak bisa input trade.` : null,
+    status: mcDate ? "Breached" : profit >= target && nd >= a.minD ? "Passed" : "Active",
     pf: gl ? gp / gl : null,
     avgW: w.length ? gp / w.length : 0,
     avgL: l.length ? gl / l.length : 0,
     worstDay: Math.min(0, ...Object.values(days)),
-    low: Math.min(...pts),
+    low,
   };
+}
+const stTag = (c) => (c.status !== "Breached" && c.dailyHits.includes(today()) ? '<span class="tag Daily">Daily Breach</span>' : `<span class="tag ${c.status}">${c.status}</span>`);
+function info(t, msg) {
+  onSub = null;
+  dlg.innerHTML = `<div><h2>${t}</h2><p class="muted" style="margin-top:10px">${msg}</p><div class="row"><button type="button" class="btn" data-act="close">Mengerti</button></div></div>`;
+  dlg.showModal();
 }
 
 /* ---------- Dialog ---------- */
@@ -145,17 +164,30 @@ function newAccount() {
 }
 
 function addTrade(a, date) {
+  if (calc(a).status === "Breached") return info("Akun terkunci (MC)", "Max loss limit sudah tercapai, jadi akun ini tidak bisa menerima trade baru. Kalau limitnya perlu diubah, klik ikon pensil di kartu Max loss limit pada tab Overview.");
   openDlg(
     "Catat trade",
     fld("Tanggal", "date", `type="date" value="${date || today()}"`) +
       fld("Pair", "pair", 'placeholder="XAUUSD, EURUSD…" autocomplete="off"') +
       `<label>Posisi</label><select name="side"><option>Buy</option><option>Sell</option></select>` +
       mfld("Hasil (IDR)", "amount") +
-      `<div class="seg"><input type="radio" name="type" id="tp" value="p" checked><label class="p" for="tp">Profit</label><input type="radio" name="type" id="tl" value="l"><label class="l" for="tl">Minus</label></div>`,
+      `<div class="seg"><input type="radio" name="type" id="tp" value="p" checked><label class="p" for="tp">Profit</label><input type="radio" name="type" id="tl" value="l"><label class="l" for="tl">Minus</label></div><p class="err" role="alert"></p>`,
     "Simpan",
     (f) => {
       const v = money(f.get("amount"));
       if (!v) return false;
+      const d = f.get("date"),
+        cc = calc(a);
+      const err =
+        cc.status === "Breached"
+          ? "Akun terkunci karena Max loss limit tercapai (MC)."
+          : (cc.days[d] || 0) <= -(a.start * a.dailyP) / 100
+            ? `Daily loss limit tanggal ${d} sudah tercapai, jadi trade di hari itu dikunci. Besok akun aktif lagi.`
+            : "";
+      if (err) {
+        dlg.querySelector(".err").textContent = err;
+        return false;
+      }
       a.trades.push({ id: Date.now(), date: f.get("date"), pair: f.get("pair").trim().toUpperCase(), side: f.get("side"), amount: f.get("type") === "l" ? -v : v });
       save();
       route();
@@ -177,7 +209,7 @@ function pAccounts() {
           .map(
             ({ a, c }) => `<article class="acc"><div class="badge"><small>${esc(a.name)}</small><b>Rp ${short(a.start).replace("+", "")}</b></div>
     <div class="accbody"><span class="lbl">Current Balance</span><strong>${cu(c.bal, "idr")}</strong>
-    <div class="tags"><span class="tag ${c.profit >= 0 ? "win" : "lose"}">${c.profit >= 0 ? "Profit" : "Loss"}: ${sg(c.profit)}</span><span class="tag">${c.n} Trades</span>${c.paid ? `<span class="tag">Payout: -${idr(c.paid)}</span>` : ""}<span class="tag ${c.status}">${c.status}</span></div></div>
+    <div class="tags"><span class="tag ${c.profit >= 0 ? "win" : "lose"}">${c.profit >= 0 ? "Profit" : "Loss"}: ${sg(c.profit)}</span><span class="tag">${c.n} Trades</span>${c.paid ? `<span class="tag">Payout: -${idr(c.paid)}</span>` : ""}${stTag(c)}</div></div>
     <a class="btn sm" href="#/account/${a.id}/overview">View details</a></article>`,
           )
           .join("")
@@ -212,7 +244,7 @@ function pOverview(a, c) {
   const dl = (a.start * a.dailyP) / 100,
     ml = (a.start * a.maxP) / 100,
     dd = Math.max(0, a.start - c.low);
-  return `${c.breach ? `<div class="alert">${c.breach}</div>` : ""}
+  return `${c.breach ? `<div class="alert">${c.breach}</div>` : c.dailyHits.includes(today()) ? `<div class="alert warn">Daily loss limit tercapai hari ini. Input trade untuk hari ini dikunci, dan akun aktif lagi besok.</div>` : ""}${c.dailyHits.length ? `<p class="note">Daily loss limit pernah tercapai pada: ${c.dailyHits.slice(-5).map(fd).join(", ")}${c.dailyHits.length > 5 ? " dan lainnya" : ""}. Akun otomatis aktif lagi keesokan harinya.</p>` : ""}
   <div class="objs">
    <div class="obj"><span class="lbl">Profit target (${a.profP}%)</span><strong>${idr(c.target)}</strong>${bar((c.profit / c.target) * 100)}<small>Hasil: ${sg(c.profit)}</small></div>
    <div class="obj"><span class="lbl">Min trading days</span><strong>${a.minD} Hari</strong>${bar(a.minD ? (c.nd / a.minD) * 100 : 100)}<small>Hasil: ${c.nd} Hari</small></div>
@@ -262,8 +294,8 @@ function pCalendar(a, c) {
   <div class="months">${BLNS.map((n, i) => `<button class="mo ${i === m ? "on" : ""} ${ms[i].n ? (ms[i].s >= 0 ? "win" : "lose") : ""}" data-act="month" data-v="${i}" title="${BLN[i]} ${y}"><b>${n}</b><small>${ms[i].n ? short(ms[i].s) : "–"}</small></button>`).join("")}</div>
   <div class="wk">${HARI.map((h) => `<span>${h.slice(0, 3)}</span>`).join("")}</div><div class="dg">${cells}</div>
   <section class="card hist" id="hist"><div class="hhead"><div><h2>History ${selDay ? fd(selDay) : BLN[m] + " " + y}</h2>
-   <span class="muted">${list.length} trade &middot; Win rate ${list.length ? Math.round((w / list.length) * 100) : 0}% &middot; <b class="${tot >= 0 ? "pos" : "neg"}">${sg(tot)}</b></span></div>
-   <div>${selDay ? `<button class="btn ghost sm" data-act="day" data-v="${selDay}">Lihat sebulan</button> ` : ""}<button class="btn sm" data-act="dayAdd" data-v="${addD}">+ Catat trade</button></div></div>
+   <span class="muted">${list.length} trade &middot; Win rate ${list.length ? Math.round((w / list.length) * 100) : 0}% &middot; <b class="${tot >= 0 ? "pos" : "neg"}">${sg(tot)}</b>${selDay && c.dailyHits.includes(selDay) ? ' &middot; <b class="neg">Daily limit tercapai</b>' : ""}</span></div>
+   <div>${selDay ? `<button class="btn ghost sm" data-act="day" data-v="${selDay}">Lihat sebulan</button> ` : ""}${c.status === "Breached" ? `<button class="btn sm" disabled>Akun terkunci</button>` : `<button class="btn sm" data-act="dayAdd" data-v="${addD}">+ Catat trade</button>`}</div></div>
   ${
     Object.keys(g)
       .sort()
@@ -305,8 +337,8 @@ function pDetail(id, tab) {
   const c = calc(a),
     body = tab === "calendar" ? pCalendar(a, c) : tab === "history" ? pHistory(a, c) : pOverview(a, c);
   return `<div class="crumb"><a href="#/accounts">Accounts</a> / Account Overview</div>
-  <div class="head"><div><h1>${esc(a.name)}</h1><span class="tag ${c.status}">${c.status}</span> <span class="muted">Saldo awal ${idr(a.start)}</span></div>
-  <div><button class="btn" data-act="addTrade" data-id="${a.id}">+ Catat trade</button> <button class="link" data-act="delAcc" data-id="${a.id}">Hapus akun</button></div></div>${tabs(a.id, tab)}${body}`;
+  <div class="head"><div><h1>${esc(a.name)}</h1>${stTag(c)} <span class="muted">Saldo awal ${idr(a.start)}</span></div>
+  <div>${c.status === "Breached" ? `<button class="btn" disabled>Akun terkunci (MC)</button>` : `<button class="btn" data-act="addTrade" data-id="${a.id}">+ Catat trade</button>`} <button class="link" data-act="delAcc" data-id="${a.id}">Hapus akun</button></div></div>${tabs(a.id, tab)}${body}`;
 }
 
 const SEAL = `<svg class="seal" viewBox="0 0 100 120" aria-hidden="true"><polygon points="30,80 18,118 38,108 50,118 50,84" fill="#8a1c2b"/><polygon points="70,80 82,118 62,108 50,118 50,84" fill="#a82a3b"/><circle cx="50" cy="48" r="44" fill="#c9a24b"/><circle cx="50" cy="48" r="38" fill="none" stroke="#fff6d6" stroke-width="1.5" stroke-dasharray="2 3"/><circle cx="50" cy="48" r="31" fill="#e3c372"/><polygon points="50,24 56,40 73,41 60,52 64,69 50,60 36,69 40,52 27,41 44,40" fill="#fff6d6" stroke="#a37d2a" stroke-width="1"/></svg>`;
@@ -319,7 +351,7 @@ const certFull = (a, c) => {
    <h2 class="ctitle">Certificate of Achievement</h2>
    <p class="csub">Dengan bangga diberikan kepada</p>
    <div class="cname">${nm}</div><div class="cline"></div>
-   <p class="csub">atas keberhasilan mencapai target profit ${a.profP}% pada akun <b>${esc(a.name)}</b><br>tanpa melanggar batas daily loss maupun max loss.</p>
+   <p class="csub">atas keberhasilan mencapai target profit ${a.profP}% pada akun <b>${esc(a.name)}</b><br>${c.dailyHits.length ? "tanpa menyentuh batas max loss." : "tanpa melanggar batas daily loss maupun max loss."}</p>
    <div class="cstats"><div><b>${cu(c.profit, "sg")}</b><span>Total profit</span></div><div><b>${c.nd}</b><span>Hari trading</span></div><div><b>${cu(c.trBal, "idr")}</b><span>Saldo akhir</span></div></div>
    <div class="cfoot"><div><b>${c.passDate || "-"}</b><span>Tanggal lolos</span></div>${SEAL}<div><b>JT-${String(a.id).slice(-6)}</b><span>Nomor sertifikat</span></div></div></div></section>`;
 };
@@ -349,7 +381,10 @@ const fdl = (k) => {
 };
 
 function addPayout() {
-  const opts = S.accounts.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join("");
+  const opts = S.accounts
+    .filter((x) => calc(x).status !== "Breached")
+    .map((a) => `<option value="${a.id}">${esc(a.name)}</option>`)
+    .join("");
   openDlg(
     "Catat payout",
     fld("Tanggal payout", "date", `type="date" value="${today()}"`) +
@@ -458,13 +493,19 @@ document.addEventListener("click", (e) => {
     editLimit: () => {
       const k = v,
         t = k === "dailyP" ? "Daily loss limit" : "Max loss limit";
-      openDlg(`Ubah ${t}`, `<p class="muted">Saat ini ${a[k]}% dari saldo awal = ${idr((a.start * a[k]) / 100)}</p>` + fld(`${t} (%)`, "p", `type="number" step="any" min="0.1" max="100" value="${a[k]}"`), "Simpan", (f) => {
-        const p = +f.get("p");
-        if (!(p > 0 && p <= 100)) return false;
-        a[k] = p;
-        save();
-        route();
-      });
+      openDlg(
+        `Ubah ${t}`,
+        `<p class="muted">Saat ini ${a[k]}% dari saldo awal = ${idr((a.start * a[k]) / 100)}. Status akun dihitung ulang setelah disimpan, jadi akun yang terkunci bisa aktif lagi kalau limitnya dinaikkan.</p>` +
+          fld(`${t} (%)`, "p", `type="number" step="any" min="0.1" max="100" value="${a[k]}"`),
+        "Simpan",
+        (f) => {
+          const p = +f.get("p");
+          if (!(p > 0 && p <= 100)) return false;
+          a[k] = p;
+          save();
+          route();
+        },
+      );
     },
     viewCert: () => showCert(certFull(a, calc(a))),
     viewPay: () => showCert(payFull(S.payouts.find((p) => p.id == v)), `<button type="button" class="link" style="margin-right:auto" data-act="delPayout" data-v="${v}">Hapus payout</button>`),

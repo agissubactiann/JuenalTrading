@@ -1966,3 +1966,40 @@ dialog small.muted {
   align-items: center;
   min-height: 28px;
 }
+
+/* ===== Daily breach (sementara) & akun terkunci ===== */
+.tag.Daily {
+  background: #fdecd6;
+  color: #b45309;
+}
+.alert.warn {
+  background: #fdf1dd;
+  color: #b45309;
+  border-left-color: #e08a1e;
+}
+.note {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: -8px 0 20px;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+  background: var(--text);
+}
+.btn:disabled:hover {
+  background: var(--text);
+  color: #fff;
+  transform: none;
+}
+.err {
+  color: var(--loss);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 12px;
+}
+.err:empty {
+  display: none;
+}
